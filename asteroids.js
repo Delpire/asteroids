@@ -102,9 +102,20 @@ var Asteroid = function(velocity, angle, mass) {
 				break;
 		}
 
-	} 
+	}
 
 };
+
+Math.wrapAngle = function(a){
+
+	while(a > 2 * Math.PI)
+		a -= 2 * Math.PI;
+	while(a < 0)
+		a += 2 * Math.PI;
+
+	return a;
+
+}
 
 Asteroid.prototype = {
 	x: 0,
@@ -143,9 +154,9 @@ Asteroid.prototype = {
 	},
 	
 	update: function(elapsedTime) {
-		this.x += elapsedTime * this.velocity * Math.sin(this.angle);
-		this.y += elapsedTime * this.velocity * Math.cos(this.angle);
-		this.spin_angle += elapsedTime * this.spin;
+		this.x += elapsedTime * this.velocity * Math.cos(this.angle);
+		this.y += elapsedTime * this.velocity * Math.sin(this.angle);
+		this.spin_angle = Math.wrapAngle(this.spin_angle + elapsedTime * this.spin);
 		
 		// Wrap asteroid when going off-screen
 		if(this.x < - this.radius) this.x += WIDTH + this.radius;
