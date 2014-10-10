@@ -505,10 +505,10 @@ Asteroids.prototype = {
 				this.paused = !this.paused;
 				break;
 			case 37: // Left
-				this.ship.angle -= 0.25;
+				this.ship.angle = Math.wrapAngle(this.ship.angle - 0.25);
 				break;
 			case 39: // Right
-				this.ship.angle += 0.25;
+				this.ship.angle = Math.wrapAngle(this.ship.angle + 0.25);;
 				break;
 			case 38: // Up
 				this.fireMissile = true;
