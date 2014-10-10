@@ -408,7 +408,7 @@ Asteroids.prototype = {
 				self.ship.bullets.splice(i, 1);
 		}
 
-		for(var i = 0; i < this.level * 10 - self.asteroidsDestroyed; i++){
+		for(var i = 0; i < this.asteroids.length; i++){
 			if(self.asteroids[i].x == -500)
 				self.asteroids.splice(i, 1);
 		}
@@ -483,6 +483,9 @@ Asteroids.prototype = {
 			  	if(game.gameOver) {
 					this.level = 1;
 					this.score = 0;
+					this.lives = 3;
+					this.asteroidsDestroyed = 0;
+					this.asteroids = [];
 					this.beginLevel();
 					this.gameOver = false;
 				}
@@ -499,7 +502,6 @@ Asteroids.prototype = {
 			case 38: // Up
 				this.fireMissile = true;
 				break;
-
 
 		}
 	},
