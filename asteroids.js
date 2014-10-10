@@ -2,6 +2,9 @@
 var WIDTH = 800;
 var HEIGHT = 480;
 
+// PI / 2 Constant
+var HALF_PI = 1.5707963
+
 var MathHelper = {
 	clamp: function(value, min, max){
 		if(value <= min) return min;
@@ -117,13 +120,13 @@ Asteroids.prototype = {
 
 	makeTree: function(points, center_x, center_y, width, height){
 
-		if(points.length === 0 || width < 30 || height < 30)
+		if(points.length === 0 || width <= 10 || height <= 10)
 			return;
 
 		// This is the node that will be returned.
 		var n = {children:[], points:[], center_x:center_x, center_y:center_y};
 
-		if(points.length < 3) {
+		if(points.length < 5) {
 			n.points = points;
 			return n;
 		}
@@ -165,21 +168,34 @@ Asteroids.prototype = {
 
 		points.forEach( function(point) {
 			
+			// If this the point is the Asteroid, don't check collision.
 			if(asteroid.x != point.x && asteroid.y != point.y){
-				if(Math.pow(asteroid.x - point.x, 2) + Math.pow(asteroid.y - point.y, 2) <= 400){
-					//asteroid.velocity = 0;
-					//point.velocity = 0;
+				
+			  if(Math.pow(asteroid.x - point.x, 2) + Math.pow(asteroid.y - point.y, 2) <= 400){
 
-					//var x = asteroid.velocity + point.velocity;
-
-					//point.velocity = (x + Math.sqrt(x * x - 2 * (x - x * x))) / 2
-					point.velocity = -point.velocity;
-					asteroid.velocity = -asteroid.velocity;
-				}
+          var contact_angle = Math.atan(point.y - asteroid.y / point.x - asteroid.x);
+    
+          var v_1_x = point.velocity * Math.cos(point.angle - contact_angle) * Math.cos(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
+          
+          var v_1_y = point.velocity * Math.cos(point.angle - contact_angle) * Math.sin(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
+  
+          var v_2_x = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.cos(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
+          
+          var v_2_y = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.sin(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
+  
+          asteroid.new_velocity = Math.sqrt(v_1_x * v_1_x + v_1_y * v_1_y);
+          point.new_velocity = Math.sqrt(v_2_x * v_2_x + v_2_y * v_2_y);
+          asteroid.new_angle = Math.atan(v_1_y / v_1_x);
+          asteroid.new_angle = Math.atan(v_2_y / v_2_x);
+  
+          console.log(asteroid.velocity);
+          console.log(asteroid.angle);
+          console.log(point.velocity);
+          console.log(point.angle);
+				  }
 			}
 
 		});
-
 	},
 
 	recurseTree: function(point, node) {
@@ -217,9 +233,19 @@ Asteroids.prototype = {
 		
 		// TODO: handle asteroid collisions
 		quadtree = this.makeTree(this.asteroids, WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2);
-
+    
+    this.asteroids.forEach( function(asteroid) {
+			asteroid.new_velocity = asteroid.velocity;
+			asteroid.new_angle = asteroid.angle;
+		});
+    
 		this.asteroids.forEach( function(asteroid) {
 			self.recurseTree(asteroid, quadtree);
+		});
+		
+		this.asteroids.forEach( function(asteroid) {
+			asteroid.velocity = asteroid.new_velocity;
+			asteroid.angle = asteroid.new_angle;
 		});
 		
 	},
@@ -265,7 +291,7 @@ Asteroids.prototype = {
 	  var self = this;
 		
 		// Create asteroids
-		for(i = 0; i < this.level * 10; i++) { 
+		for(i = 0; i < this.level * 10; i++) {
 		  this.asteroids.push( new Asteroid(
 		    Math.random() * 0.1 * this.level,
 				Math.random() * 2 * Math.PI
@@ -314,7 +340,7 @@ Asteroids.prototype = {
 		var self = this;
 		
 		if(this.paused || this.gameOver) this.lastTime = time;
-		var elapsedTime = time - this.lastTime; 
+		var elapsedTime = time - this.lastTime;
 		this.lastTime = time;
 		
 		self.update(elapsedTime);
