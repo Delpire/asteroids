@@ -24,17 +24,57 @@ Resource.sfx.collide.src = "collide.wav";
 
 // Node
 //---------------------------
-var Node = function() {
+var Ship = function() {
 
-	var children = [];
-	var points = [];
+	this.angle = 0;
+	this.bullets = [];
 
 };
 
-Node.prototype = {
+Ship.prototype = {
 
-	children: [],
-	points: [],
+	render: function(context) {
+		
+		var c = context;
+
+		this.bullets.forEach( function(bullet){
+			c.beginPath();
+			c.strokeStyle="#FFFFFF";
+			c.moveTo(bullet.x,bullet.y);
+			c.lineTo(bullet.x + bullet.length, bullet.y + bullet.length);
+			c.stroke();
+		});
+
+		context.lineWidth = 2;
+		context.save();
+		context.translate(400, 220);
+		context.rotate(this.angle);
+		context.fillStyle="#FFFFFF";
+		context.strokeStyle="#000000";
+		context.beginPath();
+		context.moveTo(0,-15);
+		context.lineTo(10,20);
+		context.lineTo(-10,20);
+		context.closePath();
+		context.fill();
+		context.stroke();
+		//context.translate(0, 50);
+		context.restore();
+	},
+
+	update: function(elapsedTime) {
+		this.bullets.forEach( function(bullet){
+			bullet.x += bullet.velocity;
+			bullet.y += bullet.velocity;
+		});
+	},
+
+	fire: function(){
+
+		//this.bullets.push({x1:400 * Math.sin(this.angle) x2:400 * Math.sin(this.angle) y1:205 * Math.cos(this.angle) y2: 205 * Math.cos(this.angle)})
+		this.bullets.push({x:400, y:205 ,velocity:5, angle:this.angle, length:5});
+
+	}
 
 };
 
@@ -46,6 +86,25 @@ var Asteroid = function(velocity, angle, mass) {
 	if(mass !== undefined) this.radius = mass;
 	this.x = Math.random() * WIDTH;
 	this.y = Math.random() * HEIGHT;
+	this.crators = [];
+	this.spin = Math.random() * .005;
+	this.spin_angle = 0;
+
+	number_of_crators = Math.random() * 3;
+
+	for(var i = 0; i < number_of_crators; i++){
+
+		var attempts = 0;
+
+		while(!this.createCrator()){
+			attempts++;
+
+			if(attempts > 10)
+				break;
+		}
+
+	} 
+
 };
 
 Asteroid.prototype = {
@@ -56,6 +115,8 @@ Asteroid.prototype = {
 	angle: 0,
 	
 	render: function(context) {
+		var self = this;
+
 		context.save();
 		context.strokeStyle = "#000000";
 		context.fillStyle = "#aaaaaa";
@@ -64,11 +125,28 @@ Asteroid.prototype = {
 		context.fill();
 		context.stroke();
 		context.restore();
+
+		var c = context;
+
+		this.crators.forEach( function(crator) {
+			c.save();
+			c.translate(self.x, self.y);
+			c.rotate(self.spin_angle);
+			c.strokeStyle = "#000000";
+			c.fillStyle = "#aaaaaa";
+			c.beginPath();
+			c.arc(crator.x, crator.y, 2, 0, 2*Math.PI, false);
+			c.fill();
+			c.stroke();
+			c.restore();
+		});
+		
 	},
 	
 	update: function(elapsedTime) {
 		this.x += elapsedTime * this.velocity * Math.sin(this.angle);
 		this.y += elapsedTime * this.velocity * Math.cos(this.angle);
+		this.spin_angle += elapsedTime * this.spin;
 		
 		// Wrap asteroid when going off-screen
 		if(this.x < - this.radius) this.x += WIDTH + this.radius;
@@ -77,6 +155,33 @@ Asteroid.prototype = {
 		if(this.y > HEIGHT + this.radius) this.y -= HEIGHT + this.radius;
 		
 		// TODO: Rotate the asteroid
+	},
+
+	createCrator: function(){
+		var self = this;
+
+		var crator_x = Math.random() * 6;
+		var crator_y = Math.random() * (6 - crator_x);
+        var neg_or_positive = Math.round(Math.random()) * 2 - 1;
+        crator_x *= neg_or_positive;
+        neg_or_positive = Math.round(Math.random()) * 2 - 1;
+        crator_y *= neg_or_positive;
+
+
+		canCreate = true;
+
+		self.crators.forEach( function(crator) {
+
+			if(Math.pow(crator.x - crator_x, 2) + Math.pow(crator.y - crator_y, 2) <= 25){
+				canCreate = false;
+			}
+
+		});
+
+		if(canCreate)
+			this.crators.push({x:crator_x, y:crator_y})
+
+		return canCreate;
 	}
 };
 
@@ -84,11 +189,11 @@ var Asteroids = function (canvasId) {
   var myself = this;
   
   // Rendering variables
-	this.frontBuffer = document.getElementById(canvasId);
-	this.frontBufferContext = this.frontBuffer.getContext('2d');
+  this.frontBuffer = document.getElementById(canvasId);
+  this.frontBufferContext = this.frontBuffer.getContext('2d');
   this.backBuffer = document.createElement('canvas');
-	this.backBuffer.width = this.frontBuffer.width;
-	this.backBuffer.height = this.frontBuffer.height;
+  this.backBuffer.width = this.frontBuffer.width;
+  this.backBuffer.height = this.frontBuffer.height;
   this.backBufferContext = this.backBuffer.getContext('2d');
   
   // Game variables
@@ -110,6 +215,8 @@ var Asteroids = function (canvasId) {
 
   // Spatial Data Structure for Collision.
   this.quadtree;
+
+  this.ship;
   
   window.addEventListener("blur", function( event) {
     myself.paused = true;
@@ -171,30 +278,26 @@ Asteroids.prototype = {
 			// If this the point is the Asteroid, don't check collision.
 			if(asteroid.x != point.x && asteroid.y != point.y){
 				
-			  if(Math.pow(asteroid.x - point.x, 2) + Math.pow(asteroid.y - point.y, 2) <= 400){
+			  if(Math.pow(asteroid.x - point.x, 2) + Math.pow(asteroid.y - point.y, 2) <= 450){
 
-          var contact_angle = Math.atan(point.y - asteroid.y / point.x - asteroid.x);
-    
-          var v_1_x = point.velocity * Math.cos(point.angle - contact_angle) * Math.cos(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
-          
-          var v_1_y = point.velocity * Math.cos(point.angle - contact_angle) * Math.sin(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
-  
-          var v_2_x = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.cos(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
-          
-          var v_2_y = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.sin(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
-  
-          asteroid.new_velocity = Math.sqrt(v_1_x * v_1_x + v_1_y * v_1_y);
-          point.new_velocity = Math.sqrt(v_2_x * v_2_x + v_2_y * v_2_y);
-          asteroid.new_angle = Math.atan(v_1_y / v_1_x);
-          asteroid.new_angle = Math.atan(v_2_y / v_2_x);
-  
-          console.log(asteroid.velocity);
-          console.log(asteroid.angle);
-          console.log(point.velocity);
-          console.log(point.angle);
-				  }
+		          var contact_angle = Math.atan(Math.abs(point.y - asteroid.y) / Math.abs(point.x - asteroid.x));
+		    
+		          var v_1_x = point.velocity * Math.cos(point.angle - contact_angle) * Math.cos(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
+		          
+		          var v_1_y = point.velocity * Math.cos(point.angle - contact_angle) * Math.sin(contact_angle) + asteroid.velocity * Math.sin(asteroid.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
+		  
+		          var v_2_x = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.cos(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.cos(contact_angle + HALF_PI);
+		          
+		          var v_2_y = asteroid.velocity * Math.cos(asteroid.angle - contact_angle) * Math.sin(contact_angle) + point.velocity * Math.sin(point.angle - contact_angle) * Math.sin(contact_angle + HALF_PI);
+		  
+		          asteroid.new_velocity = Math.sqrt(v_1_x * v_1_x + v_1_y * v_1_y);
+		          point.new_velocity = Math.sqrt(v_2_x * v_2_x + v_2_y * v_2_y);
+		          asteroid.new_angle = Math.atan(v_1_y / v_1_x);
+		          asteroid.new_angle = Math.atan(v_2_y / v_2_x);
+
+		          Resource.sfx.collide.play();
+				}
 			}
-
 		});
 	},
 
@@ -226,6 +329,8 @@ Asteroids.prototype = {
 	update: function(elapsedTime) {
 		var self = this;
 
+		this.ship.update(elapsedTime);
+
 		// Update asteroids
 		this.asteroids.forEach( function(asteroid) {
 			asteroid.update(elapsedTime);
@@ -234,7 +339,7 @@ Asteroids.prototype = {
 		// TODO: handle asteroid collisions
 		quadtree = this.makeTree(this.asteroids, WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2);
     
-    this.asteroids.forEach( function(asteroid) {
+    	this.asteroids.forEach( function(asteroid) {
 			asteroid.new_velocity = asteroid.velocity;
 			asteroid.new_angle = asteroid.angle;
 		});
@@ -262,6 +367,8 @@ Asteroids.prototype = {
 		this.asteroids.forEach( function(asteroid) {
 			asteroid.render(self.backBufferContext);
 		});
+
+		this.ship.render(self.backBufferContext);
 		
 		// Render GUI
 		if(this.gameOver){
@@ -297,6 +404,8 @@ Asteroids.prototype = {
 				Math.random() * 2 * Math.PI
 			));
 		}
+
+		this.ship = new Ship();
 		
 		// Display level in GUI temporarily
 		this.displayLevel = true;
@@ -306,8 +415,8 @@ Asteroids.prototype = {
 	keyDown: function(e)
 	{
 		switch(e.keyCode){
-		  case 13: // ENTER
-			  if(game.gameOver) {
+		  	case 13: // ENTER
+			  	if(game.gameOver) {
 					this.level = 1;
 					this.score = 0;
 					this.beginLevel();
@@ -317,6 +426,17 @@ Asteroids.prototype = {
 			case 32: // SPACE
 				this.paused = !this.paused;
 				break;
+			case 37: // Left
+				this.ship.angle -= 0.25;
+				break;
+			case 39: // Right
+				this.ship.angle += 0.25;
+				break;
+			case 38: // Right
+				this.ship.fire();
+				break;
+
+
 		}
 	},
 	
